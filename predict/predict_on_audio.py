@@ -45,6 +45,7 @@ def compute_hcqt(audio_fpath):
     if audio_fpath.endswith('npy'):
 
         log_hcqt = np.load(audio_fpath)
+        log_hcqt = np.transpose(log_hcqt, [2, 1, 0])
 
     else:
 
