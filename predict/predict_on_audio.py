@@ -17,11 +17,11 @@ from keras.models import load_model
 
 TASKS = ['bass', 'melody1', 'melody2', 'melody3', 'multif0', 'pitch', 'vocal']
 BINS_PER_OCTAVE = 60
-N_OCTAVES = 6
-HARMONICS = [0.5, 1, 2, 3, 4, 5]
-SR = 22050
+N_OCTAVES = 5
+HARMONICS = [0.5, 1, 2, 3, 4]
+SR = 11025
 FMIN = 32.7
-HOP_LENGTH = 256
+HOP_LENGTH = 512
 
 
 def compute_hcqt(audio_fpath):
@@ -45,7 +45,6 @@ def compute_hcqt(audio_fpath):
     if audio_fpath.endswith('npy'):
 
         log_hcqt = np.load(audio_fpath)
-        log_hcqt = np.transpose(log_hcqt, [2, 1, 0])
 
     else:
 
@@ -102,7 +101,7 @@ def model_def():
     model : Model
         Compiled keras model
     """
-    input_shape = (None, None, 6)
+    input_shape = (None, None, len(HARMONICS)) # (None, None, 6)
     inputs = Input(shape=input_shape)
 
     y0 = BatchNormalization()(inputs)
