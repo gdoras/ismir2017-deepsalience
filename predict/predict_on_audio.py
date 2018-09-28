@@ -42,29 +42,35 @@ def compute_hcqt(audio_fpath):
         List of frequency values in Hz
 
     """
-    y, fs = librosa.load(audio_fpath, sr=SR)
+    if audio_fpath.endswith('npy'):
 
-    cqt_list = []
-    shapes = []
-    for h in HARMONICS:
-        cqt = librosa.cqt(
-            y, sr=fs, hop_length=HOP_LENGTH, fmin=FMIN*float(h),
-            n_bins=BINS_PER_OCTAVE*N_OCTAVES,
-            bins_per_octave=BINS_PER_OCTAVE
-        )
-        cqt_list.append(cqt)
-        shapes.append(cqt.shape)
+        log_hcqt = np.load(audio_fpath)
 
-    shapes_equal = [s == shapes[0] for s in shapes]
-    if not all(shapes_equal):
-        min_time = np.min([s[1] for s in shapes])
-        new_cqt_list = []
-        for i in range(len(cqt_list)):
-            new_cqt_list.append(cqt_list[i][:, :min_time])
-        cqt_list = new_cqt_list
+    else:
 
-    log_hcqt = ((1.0/80.0) * librosa.core.amplitude_to_db(
-        np.abs(np.array(cqt_list)), ref=np.max)) + 1.0
+        y, fs = librosa.load(audio_fpath, sr=SR)
+
+        cqt_list = []
+        shapes = []
+        for h in HARMONICS:
+            cqt = librosa.cqt(
+                y, sr=fs, hop_length=HOP_LENGTH, fmin=FMIN*float(h),
+                n_bins=BINS_PER_OCTAVE*N_OCTAVES,
+                bins_per_octave=BINS_PER_OCTAVE
+            )
+            cqt_list.append(cqt)
+            shapes.append(cqt.shape)
+
+        shapes_equal = [s == shapes[0] for s in shapes]
+        if not all(shapes_equal):
+            min_time = np.min([s[1] for s in shapes])
+            new_cqt_list = []
+            for i in range(len(cqt_list)):
+                new_cqt_list.append(cqt_list[i][:, :min_time])
+            cqt_list = new_cqt_list
+
+        log_hcqt = ((1.0/80.0) * librosa.core.amplitude_to_db(
+            np.abs(np.array(cqt_list)), ref=np.max)) + 1.0
 
     freq_grid = librosa.cqt_frequencies(
         BINS_PER_OCTAVE*N_OCTAVES, FMIN, bins_per_octave=BINS_PER_OCTAVE
