@@ -372,10 +372,10 @@ def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, th
             save_dir, "{}_{}_multif0.csv".format(save_name, task))
         save_multif0_output(times, freqs, save_path)
     else:
-        save_path = os.path.join(
-            save_dir, "{}_{}_salience.npz".format(save_name, task))
-        np.savez(save_path, salience=pitch_activation_mat, times=time_grid,
-            freqs=freq_grid)
+        #save_path = os.path.join(save_dir, "{}_{}_salience.npz".format(save_name, task))
+        #np.savez(save_path, salience=pitch_activation_mat, times=time_grid, freqs=freq_grid)
+        save_path = os.path.join(save_dir, "{}_{}_salience.npy".format(save_name, task))
+        np.save(save_path, pitch_activation_mat)
 
     print("Done!")
 
