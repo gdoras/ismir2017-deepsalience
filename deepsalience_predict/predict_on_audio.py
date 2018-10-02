@@ -374,7 +374,7 @@ def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, th
     else:
         #save_path = os.path.join(save_dir, "{}_{}_salience.npz".format(save_name, task))
         #np.savez(save_path, salience=pitch_activation_mat, times=time_grid, freqs=freq_grid)
-        save_path = os.path.join(save_dir, "{}_{}_salience.npy".format(save_name, task))
+        save_path = os.path.join(save_dir, save_name)
         np.save(save_path, pitch_activation_mat)
 
     print("Done!")
@@ -383,12 +383,10 @@ def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, th
     return save_path
 
 
-def compute_output(hcqt_filepath, task, save_dir, output_format='salience', threshold=0.3, use_neg=True, models_dirpath=None):
+def compute_output(hcqt_filepath, task, save_dir, save_name, output_format='salience', threshold=0.3, use_neg=True, models_dirpath=None):
 
     print("Loading HCQT...")
     hcqt, freq_grid, time_grid = load_hcqt(hcqt_filepath)
-
-    save_name = os.path.basename(hcqt_filepath).split('.')[0]
 
     return compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format,
                              threshold, use_neg, save_dir, save_name, models_dirpath)
