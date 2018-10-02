@@ -324,7 +324,7 @@ def save_singlef0_output(times, freqs, output_path):
 
 
 def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, threshold,
-                   use_neg, save_dir, save_name, models_dirpath=None):
+                   use_neg, save_dir, save_name, model=None):
     """Comput output for a given task
 
     Parameters
@@ -350,8 +350,8 @@ def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, th
 
     """
 
-
-    model = load_model(task, models_dirpath)
+    if model is None:
+        model = load_model(task)
 
     print("Computing salience...")
     pitch_activation_mat = get_single_test_prediction(model, hcqt)
@@ -383,13 +383,13 @@ def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, th
     return save_path
 
 
-def compute_output(hcqt_filepath, task, save_dir, save_name, output_format='salience', threshold=0.3, use_neg=True, models_dirpath=None):
+def compute_output(hcqt_filepath, task, save_dir, save_name, output_format='salience', threshold=0.3, use_neg=True, model=None):
 
     print("Loading HCQT...")
     hcqt, freq_grid, time_grid = load_hcqt(hcqt_filepath)
 
     return compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format,
-                             threshold, use_neg, save_dir, save_name, models_dirpath)
+                             threshold, use_neg, save_dir, save_name, model)
 
 
 def main(args):
