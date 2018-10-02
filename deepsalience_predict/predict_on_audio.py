@@ -8,20 +8,31 @@ import os
 import scipy
 import csv
 
-from keras.models import Model
-from keras.layers import Dense, Input, Reshape, Lambda
-from keras.layers.convolutional import Conv2D
-from keras.layers.normalization import BatchNormalization
-from keras import backend as K
-from keras.models import load_model
+import tensorflow as tf
+
 
 TASKS = ['bass', 'melody1', 'melody2', 'melody3', 'multif0', 'pitch', 'vocal']
 BINS_PER_OCTAVE = 60
-N_OCTAVES = 5
-HARMONICS = [0.5, 1, 2, 3, 4]
-SR = 11025
+N_OCTAVES = 6
+HARMONICS = [0.5, 1, 2, 3, 4, 5]
+SR = 22050
 FMIN = 32.7
-HOP_LENGTH = 512
+HOP_LENGTH = 256
+
+
+def load_hcqt(hcqt_filepath):
+
+    log_hcqt = np.load(hcqt_filepath)
+
+    freq_grid = librosa.cqt_frequencies(
+        BINS_PER_OCTAVE*N_OCTAVES, FMIN, bins_per_octave=BINS_PER_OCTAVE
+    )
+
+    time_grid = librosa.core.frames_to_time(
+        range(log_hcqt.shape[2]), sr=SR, hop_length=HOP_LENGTH
+    )
+
+    return log_hcqt, freq_grid, time_grid
 
 
 def compute_hcqt(audio_fpath):
@@ -86,10 +97,10 @@ def compute_hcqt(audio_fpath):
 def bkld(y_true, y_pred):
     """KL Divergence where both y_true an y_pred are probabilities
     """
-    y_true = K.clip(y_true, K.epsilon(), 1.0 - K.epsilon())
-    y_pred = K.clip(y_pred, K.epsilon(), 1.0 - K.epsilon())
-    return K.mean(K.mean(
-        -1.0*y_true* K.log(y_pred) - (1.0 - y_true) * K.log(1.0 - y_pred),
+    y_true = tf.keras.backend.clip(y_true, tf.keras.backend.epsilon(), 1.0 - tf.keras.backend.epsilon())
+    y_pred = tf.keras.backend.clip(y_pred, tf.keras.backend.epsilon(), 1.0 - tf.keras.backend.epsilon())
+    return tf.keras.backend.mean(tf.keras.backend.mean(
+        -1.0*y_true* tf.keras.backend.log(y_pred) - (1.0 - y_true) * tf.keras.backend.log(1.0 - y_pred),
         axis=-1), axis=-1)
 
 
@@ -98,32 +109,32 @@ def model_def():
 
     Returns
     -------
-    model : Model
+    model : tf.keras.Model
         Compiled keras model
     """
     input_shape = (None, None, len(HARMONICS)) # (None, None, 6)
-    inputs = Input(shape=input_shape)
+    inputs = tf.keras.Input(shape=input_shape)
 
-    y0 = BatchNormalization()(inputs)
-    y1 = Conv2D(128, (5, 5), padding='same', activation='relu', name='bendy1')(y0)
-    y1a = BatchNormalization()(y1)
-    y2 = Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y1a)
-    y2a = BatchNormalization()(y2)
-    y3 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y2a)
-    y3a = BatchNormalization()(y3)
-    y4 = Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy2')(y3a)
-    y4a = BatchNormalization()(y4)
-    y5 = Conv2D(8, (70, 3), padding='same', activation='relu', name='distribute')(y4a)
-    y5a = BatchNormalization()(y5)
-    y6 = Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y5a)
-    predictions = Lambda(lambda x: K.squeeze(x, axis=3))(y6)
+    y0 = tf.keras.layers.BatchNormalization()(inputs)
+    y1 = tf.keras.layers.Conv2D(128, (5, 5), padding='same', activation='relu', name='bendy1')(y0)
+    y1a = tf.keras.layers.BatchNormalization()(y1)
+    y2 = tf.keras.layers.Conv2D(64, (5, 5), padding='same', activation='relu', name='bendy2')(y1a)
+    y2a = tf.keras.layers.BatchNormalization()(y2)
+    y3 = tf.keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy1')(y2a)
+    y3a = tf.keras.layers.BatchNormalization()(y3)
+    y4 = tf.keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu', name='smoothy2')(y3a)
+    y4a = tf.keras.layers.BatchNormalization()(y4)
+    y5 = tf.keras.layers.Conv2D(8, (70, 3), padding='same', activation='relu', name='distribute')(y4a)
+    y5a = tf.keras.layers.BatchNormalization()(y5)
+    y6 = tf.keras.layers.Conv2D(1, (1, 1), padding='same', activation='sigmoid', name='squishy')(y5a)
+    predictions = tf.keras.layers.Lambda(lambda x: tf.keras.backend.squeeze(x, axis=3))(y6)
 
-    model = Model(inputs=inputs, outputs=predictions)
+    model = tf.keras.Model(inputs=inputs, outputs=predictions)
     model.compile(loss=bkld, metrics=['mse'], optimizer='adam')
     return model
 
 
-def load_model(task):
+def load_model(task, models_dirpath=None):
     """Load a precompiled, pretrained model
 
     Parameters
@@ -140,7 +151,7 @@ def load_model(task):
 
     Returns
     -------
-    model : Model
+    model : tf.keras.Model
         Pretrained, precompiled Keras model
 
     """
@@ -148,10 +159,14 @@ def load_model(task):
     if task not in TASKS:
         raise ValueError("task must be one of {}".format(TASKS))
 
-    weights_path = os.path.join('weights', '{}.h5'.format(task))
+    if models_dirpath is None:
+        models_dirpath = 'weights'
+
+    weights_path = os.path.join(models_dirpath, '{}.h5'.format(task))
     if not os.path.exists(weights_path):
         raise IOError(
             "Cannot find weights path {} for this task.".format(weights_path))
+
 
     model.load_weights(weights_path)
     return model
@@ -162,7 +177,7 @@ def get_single_test_prediction(model, input_hcqt):
 
     Parameters
     ----------
-    model : Model
+    model : tf.keras.Model
         Pretrained model
     input_hcqt : np.ndarray
         HCQT
@@ -308,8 +323,8 @@ def save_singlef0_output(times, freqs, output_path):
             csv_writer.writerow([t, f])
 
 
-def compute_output(hcqt, time_grid, freq_grid, task, output_format, threshold,
-                   use_neg, save_dir, save_name):
+def compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format, threshold,
+                   use_neg, save_dir, save_name, models_dirpath=None):
     """Comput output for a given task
 
     Parameters
@@ -334,7 +349,9 @@ def compute_output(hcqt, time_grid, freq_grid, task, output_format, threshold,
         Output file basename
 
     """
-    model = load_model(task)
+
+
+    model = load_model(task, models_dirpath)
 
     print("Computing salience...")
     pitch_activation_mat = get_single_test_prediction(model, hcqt)
@@ -363,6 +380,19 @@ def compute_output(hcqt, time_grid, freq_grid, task, output_format, threshold,
     print("Done!")
 
 
+    return save_path
+
+
+def compute_output(hcqt_filepath, task, save_dir, output_format='salience', threshold=0.3, use_neg=True, models_dirpath=None):
+
+    print("Loading HCQT...")
+    hcqt, freq_grid, time_grid = load_hcqt(hcqt_filepath)
+
+    save_name = os.path.basename(hcqt_filepath).split('.')[0]
+
+    return compute_output_from_hcqt(hcqt, time_grid, freq_grid, task, output_format,
+                             threshold, use_neg, save_dir, save_name, models_dirpath)
+
 
 def main(args):
     if args.task not in ['all'] + TASKS:
@@ -378,11 +408,11 @@ def main(args):
     if args.task == 'all':
         for task in TASKS:
             print("[Computing {} output]".format(task))
-            compute_output(
+            compute_output_from_hcqt(
                 hcqt, time_grid, freq_grid, task, args.output_format,
                 args.threshold, args.use_neg, args.save_dir, save_name)
     else:
-        compute_output(
+        compute_output_from_hcqt(
             hcqt, time_grid, freq_grid, args.task, args.output_format,
             args.threshold, args.use_neg, args.save_dir, save_name)
 
